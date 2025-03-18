@@ -20,3 +20,7 @@ theme = 'not-much'
   name = "github"
   title = "GitHub"
   url = "https://github.com/GianOrtiz"
+
+[params]
+  theme = "dark"
+  pallete = "dracula"
