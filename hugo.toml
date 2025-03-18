@@ -1,4 +1,22 @@
 baseURL = 'https://gianortiz.com/'
 languageCode = 'en-us'
 title = 'Gian Ortiz'
-theme = not-much
+theme = 'not-much'
+
+[[menu.main]]
+  identifier = "about"
+  name = "about"
+  title = "About"
+  url = "/"
+
+[[menu.main]]
+  identifier = "posts"
+  name = "posts"
+  title = "Posts"
+  url = "/posts"
+
+[[menu.main]]
+  identifier = "github"
+  name = "github"
+  title = "GitHub"
+  url = "https://github.com/GianOrtiz"
