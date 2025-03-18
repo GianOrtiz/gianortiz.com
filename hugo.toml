@@ -1,0 +1,4 @@
+baseURL = 'https://gianortiz.com/'
+languageCode = 'en-us'
+title = 'Gian Ortiz'
+theme = not-much
