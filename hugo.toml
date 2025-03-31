@@ -24,3 +24,7 @@ theme = 'not-much'
 [params]
   theme = "dark"
   pallete = "dracula"
+
+[caches]
+  [caches.images]
+    dir = ':cacheDir/images'
