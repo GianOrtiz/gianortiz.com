@@ -8,22 +8,25 @@ theme = 'not-much'
   name = "about"
   title = "About"
   url = "/"
+  weight = 1
 
 [[menu.main]]
   identifier = "posts"
   name = "posts"
   title = "Posts"
   url = "/posts"
+  weight = 2
 
 [[menu.main]]
   identifier = "github"
   name = "github"
   title = "GitHub"
   url = "https://github.com/GianOrtiz"
+  weight = 3
 
 [params]
   theme = "dark"
-  pallete = "dracula"
+  pallete = "catpuccin"
 
 [caches]
   [caches.images]
