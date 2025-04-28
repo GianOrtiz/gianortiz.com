@@ -2,6 +2,7 @@ baseURL = 'https://gianortiz.com/'
 languageCode = 'en-us'
 title = 'Gian Ortiz'
 theme = 'not-much'
+showPostsSummary = true
 
 [[menu.main]]
   identifier = "about"
@@ -26,7 +27,7 @@ theme = 'not-much'
 
 [params]
   theme = "dark"
-  pallete = "catpuccin"
+  pallete = "dracula"
 
 [caches]
   [caches.images]
