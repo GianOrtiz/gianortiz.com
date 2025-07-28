@@ -1,6 +1,6 @@
 +++
 date = '2025-04-14T18:20:08-03:00'
-draft = false
+draft = true
 title = 'Kubernetes Checkpoint Restore Operator Checkpointing'
 summary = 'Creating a Checkpoint/Restore Operator in Kubernetes to transparent checkpoint and recover Deployment Pods.'
 +++
