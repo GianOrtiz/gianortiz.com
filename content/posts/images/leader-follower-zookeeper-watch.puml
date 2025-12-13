@@ -1,0 +1,76 @@
+@startuml
+title Scheduler Engine - Leader/Follower with ZooKeeper (Watches)
+
+actor StartScript
+participant "scheduler.Engine\n(Replica)" as Engine
+participant "leader.Elector\n(ZooKeeper Impl)" as Elector
+participant "follower.Registry\n(ZooKeeper Impl)" as Registry
+participant partition.AssignmentRepository as PartitionRepo
+participant partition.Assigner as Assigner
+participant ZooKeeper
+
+StartScript -> Engine : Start()
+activate Engine
+
+group Initial Registration & Leader Election
+    Engine -> Elector : RegisterAndWatch(replicaID)
+    activate Elector
+    Elector -> ZooKeeper : Create Ephemeral Sequential ZNode ("/nodes/replica-")
+    activate ZooKeeper
+    note right: Registers replica and gets a unique, ordered ID.
+    Elector -> ZooKeeper : GetChildren("/nodes")
+    ZooKeeper --> Elector : children
+    deactivate ZooKeeper
+
+    alt Is first in sequence?
+        Elector -> Engine : BecomeLeader()
+        note over Engine: Running as LEADER
+        Engine -> Registry : WatchFollowers()
+        activate Registry
+        Registry -> ZooKeeper : Set Watch on Children of "/nodes"
+        note right: Get notified when replicas join/leave.
+        deactivate Registry
+        Engine -> Engine: Perform initial partition assignment
+    else Is a follower
+        Elector -> ZooKeeper : Set Watch on preceding ZNode
+        note right: Get notified when the current leader fails.
+    end
+    deactivate Elector
+end
+
+group Follower Failure (Leader Perspective)
+    ... Replica fails ...
+    ZooKeeper -> Registry : Notification (Child Removed)
+    activate Registry
+    Registry -> Engine : FollowerSetChanged()
+    deactivate Registry
+
+    activate Engine
+    note over Engine: LEADER re-assigns partitions
+    Engine -> Registry : GetActiveFollowers()
+    Engine -> Assigner : Assign(partitions, newFollowerSet)
+    activate Assigner
+    Assigner -> PartitionRepo : SaveAssignments(newAssignments)
+    deactivate Assigner
+    deactivate Engine
+end
+
+group Leader Failure (Follower Perspective)
+    ... Leader fails ...
+    ZooKeeper -> Elector : Notification (Preceding ZNode Deleted)
+    activate Elector
+    note over Elector: Received watch event.
+    Elector -> ZooKeeper : GetChildren("/nodes")
+    activate ZooKeeper
+    ZooKeeper --> Elector : children
+    deactivate ZooKeeper
+
+    alt Is now first in sequence?
+        Elector -> Engine : BecomeLeader()
+        note right: New leader takes over duties.
+    else Still a follower
+        Elector -> ZooKeeper : Set Watch on new preceding ZNode
+    end
+    deactivate Elector
+end
+@enduml

@@ -1,0 +1,70 @@
+@startuml
+title Scheduler Engine - Leader/Follower with ZooKeeper
+
+actor StartScript
+participant "scheduler.Engine\n(Replica)" as Engine
+participant "leader.Elector\n(ZooKeeper Impl)" as Elector
+participant "follower.Registry\n(ZooKeeper Impl)" as Registry
+participant partition.AssignmentRepository as PartitionRepo
+participant partition.Assigner as Assigner
+participant schedule.Repository as ScheduleRepo
+participant broker.Broker as Broker
+participant ZooKeeper
+
+StartScript -> Engine : Start()
+activate Engine
+
+group Initial Registration
+    Engine -> Elector : Register(replicaID)
+    activate Elector
+    Elector -> ZooKeeper : Create Ephemeral Sequential ZNode ("/nodes/replica-")
+    note right: Registers replica and gets a unique, ordered ID.
+    deactivate Elector
+end
+
+group Main Execution Loop [every minute]
+    loop
+        Engine -> Elector : IsLeader(replicaID)
+        activate Elector
+        Elector -> ZooKeeper : GetChildren("/nodes")
+        note right: Checks if its ZNode has the lowest sequence number.
+        activate ZooKeeper
+        ZooKeeper --> Elector : children
+        deactivate ZooKeeper
+        Elector --> Engine : isLeader, err
+        deactivate Elector
+
+        alt isLeader
+            note over Engine: Running as LEADER
+            Engine -> Registry : GetActiveFollowers()
+            activate Registry
+            Registry -> ZooKeeper : GetChildren("/nodes")
+            activate ZooKeeper
+            ZooKeeper --> Registry : children
+            deactivate ZooKeeper
+            note right: All ephemeral znodes represent active followers.
+            Registry --> Engine : activeFollowers
+            deactivate Registry
+
+            Engine -> Assigner : Assign(partitions, activeFollowers)
+            activate Assigner
+            Assigner -> PartitionRepo : SaveAssignments(assignments)
+            Assigner --> Engine : assignments
+            deactivate Assigner
+        end
+
+        note over Engine: All replicas (including leader) run as followers.
+        Engine -> Assigner : GetAssignments(replicaID)
+        activate Assigner
+        Assigner --> Engine : myPartitions
+        deactivate Assigner
+
+        Engine -> ScheduleRepo : GetPendingSchedules(now, myPartitions)
+        activate ScheduleRepo
+        ScheduleRepo --> Engine : schedules
+        deactivate ScheduleRepo
+
+        Engine -> Broker : Publish(taskScheduledEvents)
+    end
+end
+@enduml
