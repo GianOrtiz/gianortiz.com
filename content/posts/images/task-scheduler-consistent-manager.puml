@@ -1,0 +1,37 @@
+@startuml
+title Consistent Hashing Manager
+
+actor "scheduler.Engine\n(Replica)" as Engine
+participant consistent.Manager as ConsistentManager
+participant Zookeeper
+participant ZookeeperWatcher as Watcher
+
+Engine -> ConsistentManager : Start()
+activate ConsistentManager
+
+ConsistentManager -> Zookeeper : Create(serverID)
+activate Zookeeper
+Zookeeper --> ConsistentManager : success
+deactivate Zookeeper
+
+ConsistentManager -> Zookeeper : ChildrenW(znodeServerPath)
+note right: znodeServerPath is the root znodes path
+activate Zookeeper
+Zookeeper --> ConsistentManager : Watcher
+deactivate Zookeeper
+
+note left: Waits for the watcher to send an event happening at the root znode
+group Waits for event
+   Watcher --> ConsistentManager : event
+
+   ConsistentManager -> Zookeeper : Children(znodeServerPath)
+   activate Zookeeper
+   Zookeeper --> ConsistentManager : children
+   deactivate
+
+    loop child of children
+        ConsistentManager -> ConsistentManager : AddServer(child)
+    end 
+    note right: By the end of the loop exists a new consistent ring
+end
+@enduml

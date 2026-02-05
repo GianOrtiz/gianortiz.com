@@ -1,0 +1,28 @@
+@startuml
+title Scheduler Engine - Consistent Hashing
+
+actor StartScript
+participant "scheduler.Engine\n(Replica)" as Engine
+participant consistent.Manager as ConsistentManager
+participant schedule.Repository as ScheduleRepo
+participant broker.Broker as Broker
+
+StartScript -> Engine : Start()
+activate Engine
+
+group Main Execution Loop [every minute]
+    loop
+        Engine -> ConsistentManager : GetHashRangesForServer(replicaID)
+        activate ConsistentManager
+        ConsistentManager --> Engine : hashRanges
+        deactivate ConsistentManager
+
+        Engine -> ScheduleRepo : GetPendingSchedulesFromPartitionRanges(hashRanges)
+        activate ScheduleRepo
+        ScheduleRepo --> Engine : executions
+        deactivate ScheduleRepo
+
+        Engine -> Broker : Publish(taskScheduledEvents)
+    end
+end
+@enduml

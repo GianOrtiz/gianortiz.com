@@ -1,0 +1,61 @@
+@startuml
+title Scheduler Engine - Leader/Follower Execution Loop
+
+actor StartScript
+participant "scheduler.Engine\n(Replica)" as Engine
+participant leader.Elector as Elector
+participant follower.Registry as Registry
+participant partition.AssignmentRepository as PartitionRepo
+participant partition.Assigner as Assigner
+participant schedule.Repository as ScheduleRepo
+participant broker.Broker as Broker
+
+StartScript -> Engine : Start()
+activate Engine
+
+group Heartbeat Loop [every heartbeatInterval]
+    loop
+        Engine -> Registry : Register(replicaID)
+        note right: Updates "last_seen" timestamp for this replica.
+    end
+end
+
+group Main Execution Loop [every minute]
+    loop
+        Engine -> Elector : IsLeader(replicaID, leaseTime)
+        activate Elector
+        note right: Tries to acquire/renew leader lease in DB.
+        Elector --> Engine : isLeader, err
+        deactivate Elector
+
+        alt isLeader
+            note over Engine: Running as LEADER
+            Engine -> Registry : GetActiveFollowers(heartbeatInterval*2)
+            activate Registry
+            note right: Returns only replicas with recent heartbeats.
+            Registry --> Engine : activeFollowers
+            deactivate Registry
+
+            Engine -> Assigner : Assign(partitions, activeFollowers)
+            activate Assigner
+            Assigner -> PartitionRepo : SaveAssignments(assignments)
+            Assigner --> Engine : assignments
+            deactivate Assigner
+        end
+
+        note over Engine: All replicas (including leader) run as followers.
+        Engine -> Assigner : GetAssignments(replicaID)
+        activate Assigner
+        Assigner --> Engine : myPartitions
+        deactivate Assigner
+
+        Engine -> ScheduleRepo : GetPendingSchedules(now, myPartitions)
+        activate ScheduleRepo
+        ScheduleRepo --> Engine : schedules
+        deactivate ScheduleRepo
+
+        Engine -> Broker : Publish(taskScheduledEvents)
+        note left : Engine process schedules and publish all events to the broker.
+    end
+end
+@enduml
